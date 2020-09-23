@@ -4,9 +4,11 @@
 # prepend commands with export Sentieon stuff.
 
 configfile: "config.yaml"
+# These export the sentieon environment variables for all commands
 shell.prefix('export SENTIEON_INSTALL={}; export SENTIEON_LICENSE={}; '.format(config['params']['sentieon_install'], config['params']['sentieon_license']))
 
-
+# Rule for run all, could be shortened with a function
+# These are the targets we want to make
 rule run_all:
     input:
         "Quast_Contigs/quast.log",
@@ -54,9 +56,11 @@ rule run_all:
         "Scaffolds/Diploid_Vars/minimap_squashed_scaffold_snp_missing_vars/summary.txt",
         "Scaffolds/Diploid_Vars/minimap_squashed_scaffold_indel_haploid_vars/summary.txt",
         "Scaffolds/Diploid_Vars/minimap_squashed_scaffold_indel_diploid_vars/summary.txt",
-        "Scaffolds/Diploid_Vars/minimap_squashed_scaffold_indel_missing_vars/summary.txt"    
+        "Scaffolds/Diploid_Vars/minimap_squashed_scaffold_indel_missing_vars/summary.txt"
 
 
+# Rule for read clustering
+# mapping reads ot the seed library
 rule read_clustering:
     input:
         expand("{sample}", sample=config['samples']['fastq'])
@@ -77,6 +81,7 @@ rule read_clustering:
             "$SENTIEON_INSTALL/bin/sentieon util sort -t {threads} -o {output} --sam2bam - &> {log}"
 
 
+# Sentieon's software uses a pcr indel model to limit false positives
 rule indel_modeling:
     input:
         "Assembly/cg50X_SentieonIter0.bam"
@@ -94,6 +99,7 @@ rule indel_modeling:
             "--algo RepeatStat {output} &> {log}"
 
 
+# First assembly step
 rule linked_reads_assemble:
     input:
         bam = "Assembly/cg50X_SentieonIter0.bam",
@@ -116,6 +122,7 @@ rule linked_reads_assemble:
             "{output.bam} &> {log}"
 
 
+# First graph solving step
 rule linked_reads_solve:
     input:
         clusters = "Assembly/cg50X_SentieonIter0.bam",
@@ -142,6 +149,7 @@ rule linked_reads_solve:
             "--range_barcode {params.range_bc} &> {log}"
 
 
+# rescue step for unassembled reads and contigs
 rule linked_reads_rescue:
     input:
         bam = "Assembly/cg50X_SentieonIter0.bam",
@@ -163,6 +171,7 @@ rule linked_reads_rescue:
             "{output} &> {log}"
 
 
+# Second assembly step/scaffolding
 rule linked_reads_bridge:
     input:
         bam = "Assembly/LinkedReads.rescue.bam",
@@ -182,6 +191,7 @@ rule linked_reads_bridge:
             "{output} &> {log}"
 
 
+# Second graph solving step
 rule linked_reads_solve_2:
     input:
         bam = "Assembly/cg50X_SentieonIter0.bam",
@@ -211,6 +221,7 @@ rule linked_reads_solve_2:
             "--phase_barcodes {output.barcodes} &> {log}"
 
 
+# run quast on contig assemblies
 rule run_quast_contigs:
     input:
         expand("Assembly/LinkedReads.contig_{hap}.fasta", hap=[0,1])
@@ -233,6 +244,7 @@ rule run_quast_contigs:
             "-s "
 
 
+# get contig N50 using python script
 rule contig_phase_n50:
     input:
         "Assembly/LinkedReads.contig.phase_{hap}.fasta"
@@ -244,6 +256,7 @@ rule contig_phase_n50:
         "{params.phase_script} {input} > {output}"
 
 
+# Generate paf files using mimimap
 rule run_minimap_paf:
     input:
         fasta = "Assembly/LinkedReads.contig_{hap}.fasta",
@@ -265,6 +278,8 @@ rule run_minimap_paf:
             "gzip -c > {output}"
 
 
+# Call paf files in var format
+# This lets us get unique alignments rather easily for each haplotype
 rule call_paf_files:
     input:
         "Diploid_Vars/minimap_contigs{hap}.paf.gz"
@@ -279,6 +294,7 @@ rule call_paf_files:
             "gzip -c > {output}"
 
 
+# scrape var file for unique alignments andd output as a bed file
 rule generate_orthogonal_bed:
     input:
         "Diploid_Vars/minimap_contigs{hap}.var.gz"
@@ -290,6 +306,8 @@ rule generate_orthogonal_bed:
             "cut -f2- > {output}"
 
 
+# run minimap again, this time output a sam file
+# these will be used for variant calling
 rule run_minimap_sam:
     input:
         fasta = "Assembly/LinkedReads.contig_{hap}.fasta",
@@ -310,6 +328,7 @@ rule run_minimap_sam:
             "gzip -c > {output}"
 
 
+# sort the sam file, output a bam file
 rule flt_sort_to_bam:
     input:
         "Diploid_Vars/minimap_contigs{hap}.sam.gz"
@@ -322,6 +341,7 @@ rule flt_sort_to_bam:
             "samtools sort -m4G -@4 -o {output}"
 
 
+# create a bed file of diploid regions from unique alignments
 rule bed_diploid_regions:
     input:
         hap0 = "Diploid_Vars/minimap_contigs0.bed",
@@ -336,6 +356,7 @@ rule bed_diploid_regions:
             "-b {input.hap1} > {output}"
 
 
+# create a haploid bed file of unique alignments
 rule bed_haploid_regions:
     input:
         hap0 = "Diploid_Vars/minimap_contigs0.bed",
@@ -356,6 +377,7 @@ rule bed_haploid_regions:
             "{output}"
 
 
+# create a bed file of regions with missing alignments
 rule bed_missing_regions:
     input:
         merged = "Diploid_Vars/minimap_contig_diploid.bed",
@@ -374,6 +396,8 @@ rule bed_missing_regions:
             "{output}"
 
 
+# function to determine var calling flags
+# if -f is present chrom Y is ignored
 def is_female(wildcards):
     if config['params']['is_female']:
         return "-f"
@@ -381,6 +405,7 @@ def is_female(wildcards):
         return ""
 
 
+# call diploid variants with htsbox pileup
 rule diploid_var_calling:
     input:
         hap0 = "Diploid_Vars/minimap_contigs0.bam",
@@ -399,6 +424,7 @@ rule diploid_var_calling:
         "{params.htsbox} bgzip > {output}"
 
 
+# generate phased VCF with VCF pair
 rule phased_vcf:
     input:
         "Diploid_Vars/minimap_contigs_pair.vcf.gz"
@@ -417,6 +443,7 @@ rule phased_vcf:
         "{params.htsbox} bgzip > {output}"
 
 
+# index phased VCF
 rule phased_vcf_index:
     input:
         "Diploid_Vars/minimap_contigs_phased.vcf.gz"
@@ -428,11 +455,13 @@ rule phased_vcf_index:
         "tabix -p vcf -f {input}"
 
 
+# returns the wildcard, either snp or indel
 def get_type(wildcards):
     type = wildcards.type
     return type
 
 
+# split VCF into snps and indels, respectively
 rule split_vcf:
     input:
         vcf = "Diploid_Vars/minimap_contigs_phased.vcf.gz",
@@ -449,6 +478,7 @@ rule split_vcf:
             "{output}"
 
 
+# index the split VCFs
 rule index_split_vcfs:
     input:
         "Diploid_Vars/minimap_contig_phased_{type}.vcf.gz"
@@ -458,6 +488,7 @@ rule index_split_vcfs:
         "tabix -p vcf -f {input}"
 
 
+# return the appropriate benchmark file for each wildcard type, snp or indel
 def benchmark_file(wildcards):
     type = wildcards.type
     if type == "snp":
@@ -466,6 +497,8 @@ def benchmark_file(wildcards):
         return config['benchmark']['benchmark_indel']
 
 
+# benchmark snps and indels
+# benchmark for diploid, haploid and missing
 rule benchmark_regions_and_types:
     input:
         vcf = "Diploid_Vars/minimap_contig_phased_{type}.vcf.gz",
@@ -488,6 +521,9 @@ rule benchmark_regions_and_types:
             "-o $(dirname {output})"
 
 
+# run benchmarking with squashed ploidy
+# this looks for the correct nucleotide variant
+# and not necessarily the correct ploidy
 rule benchmark_regions_and_types_squash_ploidy:
     input:
         vcf = "Diploid_Vars/minimap_contig_phased_{type}.vcf.gz",
@@ -511,6 +547,7 @@ rule benchmark_regions_and_types_squash_ploidy:
             "-o $(dirname {output})"
 
 
+# scaffold contigs using python script
 rule scaffold_contigs:
     input:
         "Assembly/LinkedReads.contig_{hap}.fasta"
@@ -521,6 +558,8 @@ rule scaffold_contigs:
     shell:
         "{params.scaffold} {input} > {output}"
 
+
+# run quast with the scaffolds
 rule run_quast_scaffolds:
     input:
         expand("Scaffolds/LinkedReads.scaffolds_{hap}.fa", hap=[0,1])
@@ -543,6 +582,7 @@ rule run_quast_scaffolds:
             "-s "
 
 
+# generate paf file of scaffolds
 rule run_minimap_paf_scaffold:
     input:
         fasta = "Scaffolds/LinkedReads.scaffolds_{hap}.fa",
@@ -564,6 +604,7 @@ rule run_minimap_paf_scaffold:
             "gzip -c > {output}"
 
 
+# call vars in var format from scaffolds
 rule call_paf_files_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffolds{hap}.paf.gz"
@@ -578,6 +619,7 @@ rule call_paf_files_scaffold:
             "gzip -c > {output}"
 
 
+# scrape the var files for unique alignments
 rule generate_orthogonal_bed_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffolds{hap}.var.gz"
@@ -589,6 +631,7 @@ rule generate_orthogonal_bed_scaffold:
             "cut -f2- > {output}"
 
 
+# run minimap, this time generate sam files
 rule run_minimap_sam_scaffold:
     input:
         fasta = "Scaffolds/LinkedReads.scaffolds_{hap}.fa",
@@ -610,6 +653,7 @@ rule run_minimap_sam_scaffold:
             "gzip -c > {output}"
 
 
+# sort sam file and output bam
 rule flt_sort_to_bam_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffolds{hap}.sam.gz"
@@ -622,6 +666,7 @@ rule flt_sort_to_bam_scaffold:
             "samtools sort -m4G -@4 -o {output}"
 
 
+# generate diploid bed file of scaffold unique alignments
 rule bed_diploid_regions_scaffold:
     input:
         hap0 = "Scaffolds/Diploid_Vars/minimap_scaffolds0.bed",
@@ -636,6 +681,7 @@ rule bed_diploid_regions_scaffold:
             "-b {input.hap1} > {output}"
 
 
+# generate haploid bed file of scaffold alignments
 rule bed_haploid_regions_scaffold:
     input:
         hap0 = "Scaffolds/Diploid_Vars/minimap_scaffolds0.bed",
@@ -656,6 +702,7 @@ rule bed_haploid_regions_scaffold:
             "{output}"
 
 
+# generate missing bed file of scaffold alignments
 rule bed_missing_regions_scaffold:
     input:
         merged = "Scaffolds/Diploid_Vars/minimap_scaffold_diploid.bed",
@@ -674,6 +721,7 @@ rule bed_missing_regions_scaffold:
             "{output}"
 
 
+# call vars using htsbox pileup
 rule diploid_var_calling_scaffold:
     input:
         hap0 = "Scaffolds/Diploid_Vars/minimap_scaffolds0.bam",
@@ -692,6 +740,7 @@ rule diploid_var_calling_scaffold:
         "{params.htsbox} bgzip > {output}"
 
 
+# phase VCF with vcf_pair
 rule phased_vcf_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffolds_pair.vcf.gz"
@@ -710,6 +759,7 @@ rule phased_vcf_scaffold:
         "{params.htsbox} bgzip > {output}"
 
 
+# index the phased VCF
 rule phased_vcf_index_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffolds_phased.vcf.gz"
@@ -721,6 +771,7 @@ rule phased_vcf_index_scaffold:
         "tabix -p vcf -f {input}"
 
 
+# split scaffold VCF into SNPs and InDels
 rule split_vcf_scaffold:
     input:
         vcf = "Scaffolds/Diploid_Vars/minimap_scaffolds_phased.vcf.gz",
@@ -737,6 +788,7 @@ rule split_vcf_scaffold:
             "{output}"
 
 
+# index the split VCFs
 rule index_split_vcfs_scaffold:
     input:
         "Scaffolds/Diploid_Vars/minimap_scaffold_phased_{type}.vcf.gz"
@@ -746,6 +798,8 @@ rule index_split_vcfs_scaffold:
         "tabix -p vcf -f {input}"
 
 
+# run benchmarking for SNPs and InDels
+# for haploid, diploid and missing regions
 rule benchmark_regions_and_types_scaffold:
     input:
         vcf = "Scaffolds/Diploid_Vars/minimap_scaffold_phased_{type}.vcf.gz",
@@ -768,6 +822,7 @@ rule benchmark_regions_and_types_scaffold:
             "-o $(dirname {output})"
 
 
+# run again with ploidy squashed
 rule benchmark_regions_and_types_squash_ploidy_scaffold:
     input:
         vcf = "Scaffolds/Diploid_Vars/minimap_scaffold_phased_{type}.vcf.gz",
@@ -789,4 +844,3 @@ rule benchmark_regions_and_types_squash_ploidy_scaffold:
             "-e {params.truth_bed} "
             "-t {params.ref_sdf} "
             "-o $(dirname {output})"
-
