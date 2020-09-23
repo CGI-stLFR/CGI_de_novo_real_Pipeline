@@ -1,0 +1,40 @@
+samples:
+    fastq: [split_read.1.fq.gz, split_read.2.fq.gz]
+    date: "20200101"
+    haps: [0, 1]
+software:
+    minimap: "/home/eanderson/minimap2-2.16_x64-linux/minimap2"
+    quast: "/research/rv-02/home/qmao/Scripts/python_virtualenv/quast_v5/env/bin/quast.py"
+    bin_by_pid: "/home-02/eanderson/Sentieon_Binning_and_Stratification/bin_by_pid.py"
+    seqtk: "/home/qmao/Scripts/seqtk-master/seqtk"
+    sam_flt: "/home/eanderson/CHM-eval/dip-call/sam-flt.js"
+    vcf_pair: "/home/eanderson/CHM-eval/dip-call/vcf-pair.js"
+    htsbox: "/home/eanderson/CHM-eval.kit/htsbox"
+    bcftools: "/opt/cgi-tools/bin/bcftools"
+    bedtools: "/home/eanderson/bedtools2/bin/bedtools"
+    rtg: "/research/rv-02/home/qmao/Scripts/rtg-tools-3.8.4/rtg"
+    paftools: "paftools.js"
+    phase_script: "/research/rv-02/home/eanderson/CGI_de_novo_real_Pipeline/phase_block_n50.py"
+    scaffold: "/research/rv-02/home/eanderson/CGI_de_novo_real_Pipeline/scaffold_contigs.py"
+params:
+    platform: "bgi-seq"
+    read_group: "@RG\tID:ssb_library1\tLB:SSB\tSM:NA12878"
+    sentieon_install: "/opt/sentieon-genomics-cgv0.5-201911"
+    sentieon_license: "sentieon-license-server.completegenomics.com:8991"
+    range_barcode: 5000
+    seed_lib: "/research/rv-02/home/eanderson/Resources_And_DBs/Sentieon_Seed_Lib/Sentieon_DB-iter0.fa"
+    min_jaccard: 0.02
+    min_contig: 10000
+    read_len: 200
+    is_female: True
+    ref: "/research/rv-02/home/qmao/DBs/hg38_fa_from_NCBI/GCA_000001405.15_GRCh38_no_alt_analysis_set.fa"
+benchmark:
+    benchmark_snp: "/research/rv-02/home/qmao/DBs/hg38_benchmark_ref/NA12878.GIAB.hg38.snp.vcf.gz"
+    benchmark_indel: "/research/rv-02/home/qmao/DBs/hg38_benchmark_ref/NA12878.GIAB.hg38.indel.vcf.gz"
+    bedfile: "/research/rv-02/home/qmao/DBs/hg38_benchmark_ref/HG001_GRCh38_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-X_v.3.3.2_highconf_nosomaticdel_noCENorHET7.bed"
+    ref_sdf: "/research/rv-02/home/qmao/DBs/hg38_benchmark_ref/GRCh38.sdf"
+threads:
+    assembly: 100
+    quast: 40
+    minimap: 12
+
