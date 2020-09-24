@@ -5,7 +5,7 @@ This pipeline is for Sentieon's assembly software for use with real sample data.
 ## Directory Contents
 
 - Snakefile
-    - This snakefile contains all the rules for running Sentieon's de novo assembly software using real and their seed library pipeline
+    - This snakefile contains all the rules for running Sentieon's de novo assembly software using their seed library pipeline and real data
     - This includes
         - de novo assembly
         - variant calling based on different ploidies

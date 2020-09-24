@@ -1,4 +1,4 @@
-# Snakemake Pipeline for sim de novo datasets
+# Snakemake Pipeline for real de novo datasets
 # Start from absolute scratch
 # So need to make the assembly using the newest software (config file)
 # prepend commands with export Sentieon stuff.
